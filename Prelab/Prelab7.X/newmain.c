@@ -72,9 +72,9 @@ void setup(void){
     // --------------- limpiar puertos --------------- 
     PORTA = 0;
  
-    
+   // --0b0111
     // --------------- Oscilador --------------- 
-    OSCCONbits.IRCF = 0b0111 ; // establecerlo en 4 MHz
+    OSCCONbits.IRCF = 0b011 ; // establecerlo en 4 MHz
     OSCCONbits.SCS = 1; // utilizar oscilador intern
     
     // --------------- TMR0 --------------- 

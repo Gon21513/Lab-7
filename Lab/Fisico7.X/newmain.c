@@ -54,13 +54,13 @@ unsigned short cambiopwm(uint8_t valor, uint8_t POTMIN, uint8_t POTMAX,
 void __interrupt() isr(void){
  ////interrupcion para primer potecniometro
     if (PIR1bits.ADIF){ //chequea interrupcion de adc
-        if (ADCON0bits.CHS == 0){ //revisa el canal 1 an0
+        if (ADCON0bits.CHS == 0b0000){ //revisa el canal 1 an0
             CCPRA = cambiopwm(ADRESH, potmin, potmax, pwmmin, pwmmax);//se mapean los valores 
             CCPR1L = (uint8_t)(CCPRA>>2);//asigna los 8 bits mas significativos a cpr1l
             CCP1CONbits.DC1B = CCPRA & 0b11; //asigna a dc1b los 2 bits menos significaticos
         }
         
-        else if (ADCON0bits.CHS == 1){//chequea la interrupcion del adc
+        else if (ADCON0bits.CHS == 0b0001){//chequea la interrupcion del adc
             CCPRB = cambiopwm(ADRESH, potmin, potmax, pwmmin, pwmmax);//se mapean los valores 
             CCPR2L = (uint8_t)(CCPRB>>2);//asigna los 8 bits mas significativos a cpr2l
             CCP2CONbits.DC2B0 = CCPRB & 0b01; //se le asigna el primer bit menos significativo
@@ -77,13 +77,13 @@ void main(void){
     setupPWM();
         while (1){
             if (ADCON0bits.GO == 0){//CHEQUEA SI EL ADC ESTA ENCENDIDO
-                if (ADCON0bits.CHS == 0){//CHEQUEA EL CANAL 0
-                    ADCON0bits.CHS = 1; //cambia a canal1
+                if (ADCON0bits.CHS == 0b0000){//CHEQUEA EL CANAL 0
+                    ADCON0bits.CHS = 0b0001; //cambia a canal1
                     __delay_us(20);//delay antes del cambio
                 }
                 
-                else if (ADCON0bits.CHS == 1){//chequea el canal1
-                    ADCON0bits.CHS = 0; //CAMBIA A CNALA ANALOGICO
+                else if (ADCON0bits.CHS == 0b0001){//chequea el canal1
+                    ADCON0bits.CHS = 0b0000; //CAMBIA A CNALA ANALOGICO
                     __delay_us(20);
                 }
                 __delay_us(20);
@@ -176,11 +176,11 @@ void setupPWM(void){
     CCP2CONbits.CCP2M = 0b1100; //modo pwm para ccp2
 
     
-    CCPR1L = 250>>2;
-    CCP1CONbits.DC1B = 250 & 0b11;
-    CCPR2L = 250>>2;
-    CCP2CONbits.DC2B0 = 250 & 0b01;
-    CCP2CONbits.DC2B1 = 250 & 0b10;
+    CCPR1L = 250>>2; //asiga 2 bits de 250 a ccpr1l
+    CCP1CONbits.DC1B = 250 & 0b11;//asigna los bits del and a dc1b 
+    CCPR2L = 250>>2;//los 2 bits desplazados se asignan a ccpr2l
+    CCP2CONbits.DC2B0 = 250 & 0b01;//asigna el valor del and a dc2b0 
+    CCP2CONbits.DC2B1 = 250 & 0b10; //asigna los bits a dc2b1
     //CCPR1L = 3; //valor inicla para que el servo inicie en 90 
     //CCP1CONbits.DC1B = 0b11; ///BITS menos significativos
     
