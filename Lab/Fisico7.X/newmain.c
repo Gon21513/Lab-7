@@ -60,7 +60,7 @@ void __interrupt() isr(void){
             CCP1CONbits.DC1B = CCPRA & 0b11; //asigna a dc1b los 2 bits menos significaticos
         }
         
-        else if (ADCON0bits.CHS == 0b0001){//chequea la interrupcion del adc
+        else if (ADCON0bits.CHS ==  0b0010){//chequea la interrupcion del adc
             CCPRB = cambiopwm(ADRESH, potmin, potmax, pwmmin, pwmmax);//se mapean los valores 
             CCPR2L = (uint8_t)(CCPRB>>2);//asigna los 8 bits mas significativos a cpr2l
             CCP2CONbits.DC2B0 = CCPRB & 0b01; //se le asigna el primer bit menos significativo
@@ -76,18 +76,16 @@ void main(void){
     setupADC();//LLamar a la configuracion del adc
     setupPWM();
         while (1){
-            if (ADCON0bits.GO == 0){//CHEQUEA SI EL ADC ESTA ENCENDIDO
-                if (ADCON0bits.CHS == 0b0000){//CHEQUEA EL CANAL 0
-                    ADCON0bits.CHS = 0b0001; //cambia a canal1
-                    __delay_us(20);//delay antes del cambio
-                }
+        if (ADCON0bits.GO == 0) { // Chequea si el ADC está encendido
+            if (ADCON0bits.CHS == 0b0000) { // Chequea el canal 0
+                ADCON0bits.CHS = 0b0010; // Cambia a canal 1
                 
-                else if (ADCON0bits.CHS == 0b0001){//chequea el canal1
-                    ADCON0bits.CHS = 0b0000; //CAMBIA A CNALA ANALOGICO
-                    __delay_us(20);
-                }
-                __delay_us(20);
-                ADCON0bits.GO = 1; //INICIO DE CONVERSIO 
+            } else if (ADCON0bits.CHS == 0b0010) { // Chequea el canal 1
+                ADCON0bits.CHS = 0b0000; // Cambia a canal analógico 0
+            }
+
+            ADCON0bits.GO = 1; // Inicio de conversión
+            __delay_us(20); // Delay después de iniciar la conversión
                 
             }
 }
@@ -101,12 +99,12 @@ void setup(void){
     // --------------- Definir como digitales --------------- 
     ANSELH = 0; //puertos digitales 
     ANSELbits.ANS0 = 1; // ra0 como analogico
-    ANSELbits.ANS1 = 1; //ra1 como analogico
+    ANSELbits.ANS2 = 1; //ra1 como analogico
     
     
     // --------------- Configura puertos --------------- 
     TRISAbits.TRISA0 = 1; //puerto A0 como entrada
-    TRISAbits.TRISA1 = 1; //puerto A1 como entrada
+    TRISAbits.TRISA2 = 1; //puerto A1 como entrada
    
     // --------------- limpiar puertos --------------- 
     PORTA = 0;
