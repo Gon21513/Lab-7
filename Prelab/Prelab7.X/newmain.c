@@ -23,25 +23,33 @@
 
 #include <xc.h>
 #include <stdint.h>
+#include <pic16f887.h>
 
 
-#define _XTAL_FREQ 8000000
+#define _XTAL_FREQ 500000  //frecuencia de 4MHZ
 
-
-////Rutina de interrupciones
-void __interrupt() isr(void){
-}
 
 /////////////////////setup
 void setup(void); //prototipo de setuo
 void setupADC(void); //prototipo ADC
+void setupPWM(void); //prototipo del PWM
 
+
+
+////Rutina de interrupciones
+void __interrupt() isr(void){
+ 
+}
 
 //////////main
 void main(void){
     setup();//llamar a las configuraciones genreales
     setupADC();//LLamar a la configuracion del adc
-    
+    setupPWM();
+        //while (1){
+        //if (ADCON0bits.GO == 0){ //Chequear si termina la conversion
+        //ADCON0bits.GO = 1;} // Inicia conversión
+//}
 }
 
 
@@ -49,25 +57,24 @@ void main(void){
 
 void setup(void){
     // --------------- Definir como digitales --------------- 
-    ANSELbits.ANS0 = 1;
-    ANSELbits.ANS1 = 1;
-    ANSELH = 0;
+    ANSELH = 0; //puertos digitales 
+    ANSELbits.ANS0 = 1; // ra0 como analogico
+    ANSELbits.ANS1 = 1; //ra1 como analogico
+    
     
     // --------------- Configura puertos --------------- 
-    //TRISA = 0; // Configura PORTA como salida
-    TRISC = 0; // Configura PORTC como salida
-    TRISD = 0; // Configura PORTD como salida
-    TRISE = 0; // Configura PORTE como salida
+    TRISAbits.TRISA0 = 1; //puerto A0 como entrada
+    TRISAbits.TRISA1 = 1; //puerto A1 como entrada
+    
+
     
     
     // --------------- limpiar puertos --------------- 
     PORTA = 0;
-    PORTC = 0;
-    PORTD = 0;
-    PORTE = 0;
+ 
     
     // --------------- Oscilador --------------- 
-    OSCCONbits.IRCF = 0b111 ; // establecerlo en 8 MHz
+    OSCCONbits.IRCF = 0b0111 ; // establecerlo en 4 MHz
     OSCCONbits.SCS = 1; // utilizar oscilador intern
     
     // --------------- TMR0 --------------- 
@@ -78,9 +85,9 @@ void setup(void){
     OPTION_REGbits.PS0 = 1;  
     TMR0 = 216; ///VALOR INICIAL DEL TMR0
     
-    // --------------- Banderas e interrupciones --------------- 
+    // --------------- interrupciones --------------- 
     INTCONbits.T0IF = 0; // establece la bandera de la interrupcion del TMR0 apagada
-    INTCONbits.T0IE = 1; // habilitar iinterrupcion del TMR0
+    INTCONbits.T0IE = 0; // habilitar iinterrupcion del TMR0
     INTCONbits.GIE = 1; // habilitar interrupciones globales
     INTCONbits.PEIE = 1; // habilitar interrupciones perifericas
     PIE1bits.ADIE = 1; // habilitar interrupciones de ADC
@@ -89,21 +96,46 @@ void setup(void){
 
 // --------------- Setup del ADC --------------- 
 void setupADC(void){
-    // --------------- Configura el canal --------------- 
-    ADCON0bits.CHS = 0b0000; // seleccionar AN0
     
-            
+    // --------------- Seleccion de reloj ---------------
+    ADCON0bits.ADCS = 0b10; // Fosc/32
+    
     // --------------- Seleccion voltaje referencia --------------- 
     ADCON1bits.VCFG1 = 0; // Voltaje de referencia de 0V
     ADCON1bits.VCFG0 = 0; // Voltaje de referencia de 5V
+    
             
-    // --------------- Seleccion de reloj ---------------
-    ADCON0bits.ADCS = 0b10; // Fosc/32
-            
-    // --------------- Asignar 8 bits, justificado izquierda ---------------
-    ADCON1bits.ADFM = 0;        
+    // --------------- justificado izquierda ---------------
+    ADCON1bits.ADFM = 0; 
+    
+    // --------------- canales --------------- 
+    ADCON0bits.CHS = 0b0000; // seleccionar AN0
+           
             
     //--------------- Iniciar el ADC ---------------
     ADCON0bits.ADON = 1;  
     __delay_ms(1);
+}
+//pr2,bits prescale y oscilador afectan al servo
+
+//-------setup de PWM-------------------
+void setupPWM(void){
+  //--------------ccp1---------------    
+    TRISCbits.TRISC2 = 1; //CCP1 como entrada
+    PR2 = 155 ;   //periodo de 2ms en el tmr2
+    
+    CCP1CONbits.P1M = 0; //modo de single output
+    CCP1CONbits.CCP1M = 0b00001100; //modo pwm
+    
+    CCPR1L = 3; //valor inicla para que el servo inicie en 90 
+    CCP1CONbits.DC1B = 0b11; ///BITS menos significativos
+    
+    PIR1bits.TMR2IF = 0; //limpiar bandera del tmr2
+    T2CONbits.T2CKPS = 0b11; //prescalr 16
+    T2CONbits.TMR2ON = 1; //encender el tmr2
+    
+   while (PIR1bits.TMR2IF == 0);
+    PIR1bits.TMR2IF = 0;
+    TRISCbits.TRISC2 = 0;
+
 }
