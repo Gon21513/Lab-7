@@ -2,7 +2,7 @@
  * File:   newmain.c
  * Author: Luis Pedro Gonzalez
  *
- * Created on 23 de marzo de 2023, 04:57 PM
+ * Created on 31 de marzo de 2023, 04:57 PM
  */
 
 // CONFIG1
@@ -32,11 +32,11 @@
 #define potmin 0//valor minimo del potenciometro 
 #define potmax 255//valor maxiomo del potenciometro
 #define pwmmin 100//valor minimo el pwm 0.4 ms para
-#define pwmmax 650//valor maximo para pwm 2.4 ms
-
+//#define pwmmax 650//valor maximo para pwm 2.4 ms
+#define pwmmax 600
 //variables para controlar el ancho de pulso
-unsigned short CCPRA = 0; //variable para el ccpr1
-unsigned short CCPRB = 0; //variable para el ccpr2
+unsigned int CCPRA = 0; //variable para el ccpr1
+unsigned int CCPRB = 0; //variable para el ccpr2
 
 
 /////////////////////setup
@@ -78,7 +78,7 @@ void main(void){
         while (1){
         if (ADCON0bits.GO == 0) { // Chequea si el ADC está encendido
             if (ADCON0bits.CHS == 0b0000) { // Chequea el canal 0
-                ADCON0bits.CHS = 0b0010; // Cambia a canal 1
+                ADCON0bits.CHS = 0b0010; // Cambia a canal 1// 0b0010
                 
             } else if (ADCON0bits.CHS == 0b0010) { // Chequea el canal 1
                 ADCON0bits.CHS = 0b0000; // Cambia a canal analógico 0
@@ -99,13 +99,14 @@ void setup(void){
     // --------------- Definir como digitales --------------- 
     ANSELH = 0; //puertos digitales 
     ANSELbits.ANS0 = 1; // ra0 como analogico
-    ANSELbits.ANS2 = 1; //ra1 como analogico
+    ANSELbits.ANS2 = 1; //ra1 como analogico (era este)
+
     
     
     // --------------- Configura puertos --------------- 
     TRISAbits.TRISA0 = 1; //puerto A0 como entrada
-    TRISAbits.TRISA2 = 1; //puerto A1 como entrada
-   
+    TRISAbits.TRISA2 = 1; //puerto A1 como entrada (era este)
+    
     // --------------- limpiar puertos --------------- 
     PORTA = 0;
     PORTC = 0;
@@ -116,16 +117,16 @@ void setup(void){
     OSCCONbits.SCS = 1; // utilizar oscilador intern
     
     // --------------- TMR0 --------------- 
-    OPTION_REGbits.T0CS = 0; // utilizar el reloj interno (fosc/4)
-    OPTION_REGbits.PSA = 0; // asignar el prescaler a Timer0
-    OPTION_REGbits.PS2 = 1; // utilizar prescaler de 256
-    OPTION_REGbits.PS1 = 1;
-    OPTION_REGbits.PS0 = 1;  
-    TMR0 = 216; ///VALOR INICIAL DEL TMR0
+//    OPTION_REGbits.T0CS = 0; // utilizar el reloj interno (fosc/4)
+//    OPTION_REGbits.PSA = 0; // asignar el prescaler a Timer0
+//    OPTION_REGbits.PS2 = 1; // utilizar prescaler de 256
+//    OPTION_REGbits.PS1 = 1;
+//    OPTION_REGbits.PS0 = 1;  
+//    TMR0 = 216; ///VALOR INICIAL DEL TMR0
     
     // --------------- INTERRUPCIONES --------------- 
-    INTCONbits.T0IF = 0; // establece la bandera de la interrupcion del TMR0 apagada
-    INTCONbits.T0IE = 0; // habilitar iinterrupcion del TMR0
+    //INTCONbits.T0IF = 0; // establece la bandera de la interrupcion del TMR0 apagada
+    //INTCONbits.T0IE = 0; // habilitar iinterrupcion del TMR0
     INTCONbits.GIE = 1; // habilitar interrupciones globales
     INTCONbits.PEIE = 1; // habilitar interrupciones perifericas
     PIE1bits.ADIE = 1; // habilitar interrupciones de ADC
@@ -175,7 +176,7 @@ void setupPWM(void){
 
     
     CCPR1L = 250>>2; //asiga 2 bits de 250 a ccpr1l
-    CCP1CONbits.DC1B = 250 & 0b11;//asigna los bits del and a dc1b 
+    CCP1CONbits.DC1B = 250 & 0b11;//asigna los bits menos sigificaticos del and a dc1b 
     CCPR2L = 250>>2;//los 2 bits desplazados se asignan a ccpr2l
     CCP2CONbits.DC2B0 = 250 & 0b01;//asigna el valor del and a dc2b0 
     CCP2CONbits.DC2B1 = 250 & 0b10; //asigna los bits a dc2b1
@@ -186,7 +187,7 @@ void setupPWM(void){
     T2CONbits.T2CKPS = 0b11; //prescalr 16
     T2CONbits.TMR2ON = 1; //encender el tmr2
     
-   while (!PIR1bits.TMR2IF);//ciclo de espera
+    while (!PIR1bits.TMR2IF);//ciclo de espera
     PIR1bits.TMR2IF = 0; //limpoar la bandera del tmr2
     
     TRISCbits.TRISC2 = 0; //habilitar salida en rc2
@@ -195,7 +196,7 @@ void setupPWM(void){
 
 }
 
-////funcion e mapeo e valores
+////funcion de mapeo e valores
 unsigned short cambiopwm(uint8_t valor, uint8_t POTMIN, uint8_t POTMAX,
         unsigned short PWMMIN, unsigned short PWMMAX){
     return (unsigned short)(PWMMIN+((float)(PWMMAX-PWMMIN)/(POTMAX-POTMIN))
