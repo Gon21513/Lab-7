@@ -24,6 +24,7 @@
 #include <xc.h>
 #include <stdint.h>
 #include <pic16f887.h>
+#include "PWM.h"
 
 
 #define _XTAL_FREQ 4000000  //frecuencia de 4MHZ
@@ -55,12 +56,17 @@ void __interrupt() isr(void){
  ////interrupcion para primer potecniometro
     if (PIR1bits.ADIF){ //chequea interrupcion de adc
         if (ADCON0bits.CHS == 0b0000){ //revisa el canal 1 an0
+            
+
+
             CCPRA = cambiopwm(ADRESH, potmin, potmax, pwmmin, pwmmax);//se mapean los valores 
             CCPR1L = (uint8_t)(CCPRA>>2);//asigna los 8 bits mas significativos a cpr1l
             CCP1CONbits.DC1B = CCPRA & 0b11; //asigna a dc1b los 2 bits menos significaticos
         }
         
         else if (ADCON0bits.CHS ==  0b0010){//chequea la interrupcion del adc
+
+
             CCPRB = cambiopwm(ADRESH, potmin, potmax, pwmmin, pwmmax);//se mapean los valores 
             CCPR2L = (uint8_t)(CCPRB>>2);//asigna los 8 bits mas significativos a cpr2l
             CCP2CONbits.DC2B0 = CCPRB & 0b01; //se le asigna el primer bit menos significativo
@@ -74,8 +80,16 @@ void __interrupt() isr(void){
 void main(void){
     setup();//llamar a las configuraciones genreales
     setupADC();//LLamar a la configuracion del adc
-    setupPWM();
+    
+    PWM_config(1, 4); // Canal CCP1, periodo de 4ms
+    PWM_config(2, 4); // Canal CCP2, periodo de 4ms
+
+    // Ciclo de trabajo inicial del 50%
+    PWM_duty(1, 250); // Canal CCP1 al 50%
+    PWM_duty(2, 250); // Canal CCP2 al 50%
+    
         while (1){
+
         if (ADCON0bits.GO == 0) { // Chequea si el ADC está encendido
             if (ADCON0bits.CHS == 0b0000) { // Chequea el canal 0
                 ADCON0bits.CHS = 0b0010; // Cambia a canal 1// 0b0010
@@ -159,42 +173,42 @@ void setupADC(void){
 //pr2,bits prescale y oscilador afectan al servo
 
 //-------setup de PWM-------------------
-void setupPWM(void){
-  //--------------ccp1---------------    
-    TRISCbits.TRISC1 = 1; //CCP1 como entrada
-    TRISCbits.TRISC2 = 1; //CCP2 como entrada
-    
-    PR2 = 249 ;   //periodo de 4ms en el tmr2
-    
-    ////------------configuracion e ccp1------------------
-    CCP1CON = 0; //APAGA CCP1 INICIALMENTE
-    CCP2CON = 0; //APAGA CCP2 INICIALMENTE
-    
-    CCP1CONbits.P1M = 0; //modo de single output
-    CCP1CONbits.CCP1M = 0b1100; //modo pwm para ccp1
-    CCP2CONbits.CCP2M = 0b1100; //modo pwm para ccp2
-
-    
-    CCPR1L = 250>>2; //asiga 2 bits de 250 a ccpr1l
-    CCP1CONbits.DC1B = 250 & 0b11;//asigna los bits menos sigificaticos del and a dc1b 
-    CCPR2L = 250>>2;//los 2 bits desplazados se asignan a ccpr2l
-    CCP2CONbits.DC2B0 = 250 & 0b01;//asigna el valor del and a dc2b0 
-    CCP2CONbits.DC2B1 = 250 & 0b10; //asigna los bits a dc2b1
-    //CCPR1L = 3; //valor inicla para que el servo inicie en 90 
-    //CCP1CONbits.DC1B = 0b11; ///BITS menos significativos
-    
-    PIR1bits.TMR2IF = 0; //limpiar bandera del tmr2
-    T2CONbits.T2CKPS = 0b11; //prescalr 16
-    T2CONbits.TMR2ON = 1; //encender el tmr2
-    
-    while (!PIR1bits.TMR2IF);//ciclo de espera
-    PIR1bits.TMR2IF = 0; //limpoar la bandera del tmr2
-    
-    TRISCbits.TRISC2 = 0; //habilitar salida en rc2
-    TRISCbits.TRISC1 = 0; //habilitar salida en rc1
-    return;
-
-}
+//void setupPWM(void){
+//  //--------------ccp1---------------    
+//    TRISCbits.TRISC1 = 1; //CCP1 como entrada
+//    TRISCbits.TRISC2 = 1; //CCP2 como entrada
+//    
+//    PR2 = 249 ;   //periodo de 4ms en el tmr2
+//    
+//    ////------------configuracion e ccp1------------------
+//    CCP1CON = 0; //APAGA CCP1 INICIALMENTE
+//    CCP2CON = 0; //APAGA CCP2 INICIALMENTE
+//    
+//    CCP1CONbits.P1M = 0; //modo de single output
+//    CCP1CONbits.CCP1M = 0b1100; //modo pwm para ccp1
+//    CCP2CONbits.CCP2M = 0b1100; //modo pwm para ccp2
+//
+//    
+//    CCPR1L = 250>>2; //asiga 2 bits de 250 a ccpr1l
+//    CCP1CONbits.DC1B = 250 & 0b11;//asigna los bits menos sigificaticos del and a dc1b 
+//    CCPR2L = 250>>2;//los 2 bits desplazados se asignan a ccpr2l
+//    CCP2CONbits.DC2B0 = 250 & 0b01;//asigna el valor del and a dc2b0 
+//    CCP2CONbits.DC2B1 = 250 & 0b10; //asigna los bits a dc2b1
+//    //CCPR1L = 3; //valor inicla para que el servo inicie en 90 
+//    //CCP1CONbits.DC1B = 0b11; ///BITS menos significativos
+//    
+//    PIR1bits.TMR2IF = 0; //limpiar bandera del tmr2
+//    T2CONbits.T2CKPS = 0b11; //prescalr 16
+//    T2CONbits.TMR2ON = 1; //encender el tmr2
+//    
+//    while (!PIR1bits.TMR2IF);//ciclo de espera
+//    PIR1bits.TMR2IF = 0; //limpoar la bandera del tmr2
+//    
+//    TRISCbits.TRISC2 = 0; //habilitar salida en rc2
+//    TRISCbits.TRISC1 = 0; //habilitar salida en rc1
+//    return;
+//
+//}
 
 ////funcion de mapeo e valores
 unsigned short cambiopwm(uint8_t valor, uint8_t POTMIN, uint8_t POTMAX,
