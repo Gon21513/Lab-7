@@ -5,7 +5,6 @@
  * Created on 31 de marzo de 2023, 04:57 PM
  */
 
-
 // CONFIG1
 #pragma config FOSC = INTRC_NOCLKOUT// Oscillator Selection bits (INTOSCIO oscillator: I/O function on RA6/OSC2/CLKOUT pin, I/O function on RA7/OSC1/CLKIN)
 #pragma config WDTE = OFF       // Watchdog Timer Enable bit (WDT disabled and can be enabled by SWDTEN bit of the WDTCON register)
@@ -26,12 +25,13 @@
 #include <stdint.h>
 #include <pic16f887.h>
 #include "PWM.h"
+#include "manual.h"
 
 ///led y potenciometro
 #define tmr0_val 249 //interrupcion 0.015us
-#define fake_pwm PORTCbits.RC3 
-uint8_t cont_led; //variable de comparacion para se;al pwm
-int pwm_led; //variable para almacernar valor del adc para pwm
+#define cont_pwm PORTCbits.RC3 
+//uint8_t cont_led; //variable de comparacion para se;al pwm
+uint8_t pwm_led; //variable para almacernar valor del adc para pwm
 
 
 #define _XTAL_FREQ 4000000  //frecuencia de 4MHZ
@@ -50,7 +50,7 @@ unsigned int CCPRB = 0; //variable para el ccpr2
 /////////////////////setup
 void setup(void); //prototipo de setuo
 void setupADC(void); //prototipo ADC
-void tmr0_setup(void); /// fucnion para el tmr0
+//void tmr0_setup(void); /// fucnion para el tmr0
 
 //------------mapeo de los valores -----------------
 unsigned short cambiopwm(uint8_t valor, uint8_t POTMIN, uint8_t POTMAX,
@@ -68,7 +68,7 @@ void __interrupt() isr(void){
             CCP1CONbits.DC1B = CCPRA & 0b11; //asigna a dc1b los 2 bits menos significaticos
         }
         
-        else if (ADCON0bits.CHS ==  0b0010){//chequea la interrupcion del adc
+        else if (ADCON0bits.CHS ==  0b0010){//chequea la interrupcion del adc//an2
 
 
             CCPRB = cambiopwm(ADRESH, potmin, potmax, pwmmin, pwmmax);//se mapean los valores 
@@ -76,23 +76,13 @@ void __interrupt() isr(void){
             CCP2CONbits.DC2B0 = CCPRB & 0b01; //se le asigna el primer bit menos significativo
             CCP2CONbits.DC2B1 = CCPRB & 0b10; //se le asigna el segundo bit menos significativo
         }
-        else if (ADCON0bits.CHS == 0b0011){
+        else if (ADCON0bits.CHS == 0b0011){//an3
             pwm_led = ADRESH;
         }
         PIR1bits.ADIF = 0; //limpia la bandera del adc
     }
     if (INTCONbits.T0IF){
-        cont_led ++; //incrementar cintador del tmr0
-        
-        if (cont_led <= pwm_led){//comparar el valor del contador con el valor del potenciometro
-            fake_pwm = 1; //si el valor del contador es menor o igual a 1 encide el puerto
-        }
-        else{
-            fake_pwm = 0; // en cualquier otra situacion apagar el puerto
-            
-        }
-        INTCONbits.T0IF = 0; //limpia bandera del tmr0
-        TMR0 = tmr0_val;
+        manualPWM_ISR();
     }
 }
 
@@ -100,13 +90,15 @@ void __interrupt() isr(void){
 void main(void){
     setup();//llamar a las configuraciones genreales
     setupADC();//LLamar a la configuracion del adc
+    manualPWM_setup(); // Llamar a la configuración del PWM manual
+
     
     PWM_config(1, 4); // Canal CCP1, periodo de 4ms
     PWM_config(2, 4); // Canal CCP2, periodo de 4ms
 
-    // Ciclo de trabajo inicial del 50%
-    PWM_duty(1, 250); // Canal CCP1 al 50%
-    PWM_duty(2, 250); // Canal CCP2 al 50%
+    // Ciclo de trabajo inicial 
+    PWM_duty(1, 250); // Canal CCP1 
+    PWM_duty(2, 250); // Canal CCP2 
     
         while (1){
 
@@ -117,7 +109,7 @@ void main(void){
             } else if (ADCON0bits.CHS == 0b0010) { // Chequea el canal 1
                 ADCON0bits.CHS = 0b0011; // Cambia a canal analógico 0
             }
-            else if (ADCON0bits.CHS == 0b0010){
+            else if (ADCON0bits.CHS == 0b0011){
                 ADCON0bits.CHS = 0b0000; // Cambia a canal analógico 0
 
             }
@@ -149,7 +141,7 @@ void setup(void){
     
     TRISAbits.TRISA3 = 1; //puerto A3 como entrada para potenciometro
     
-    TRISCbits.TRISC3 = 0;//habilitar salida en rc3
+    //TRISCbits.TRISC3 = 0;//habilitar salida en rc3
 
     // --------------- limpiar puertos --------------- 
     PORTA = 0;
@@ -160,13 +152,8 @@ void setup(void){
     OSCCONbits.IRCF = 0b0110 ; // establecerlo en 4 MHz
     OSCCONbits.SCS = 1; // utilizar oscilador intern
     
-    // --------------- TMR0 --------------- 
-    OPTION_REGbits.T0CS = 0; // utilizar el reloj interno (fosc/4)
-    OPTION_REGbits.PSA = 0; // asignar el prescaler a Timer0
-    OPTION_REGbits.PS2 = 0; // utilizar prescaler de 256
-    OPTION_REGbits.PS1 = 0;
-    OPTION_REGbits.PS0 = 0;  
-    TMR0 = tmr0_val; ///VALOR INICIAL DEL TMR0
+  
+
     
     // --------------- INTERRUPCIONES --------------- 
     //tmr0 interrupciones

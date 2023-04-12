@@ -2,7 +2,7 @@
  * File:   PWM.c
  * Author: lpgp3
  *
- * Created on 1 de abril de 2023, 01:46 PM
+ * Created on 10 de abril de 2023, 01:46 PM
  */
 #include "PWM.h"
 #include <xc.h>
