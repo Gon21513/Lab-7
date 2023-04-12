@@ -5,6 +5,7 @@
  * Created on 31 de marzo de 2023, 04:57 PM
  */
 
+
 // CONFIG1
 #pragma config FOSC = INTRC_NOCLKOUT// Oscillator Selection bits (INTOSCIO oscillator: I/O function on RA6/OSC2/CLKOUT pin, I/O function on RA7/OSC1/CLKIN)
 #pragma config WDTE = OFF       // Watchdog Timer Enable bit (WDT disabled and can be enabled by SWDTEN bit of the WDTCON register)
@@ -26,6 +27,12 @@
 #include <pic16f887.h>
 #include "PWM.h"
 
+///led y potenciometro
+#define tmr0_val 249 //interrupcion 0.015us
+#define fake_pwm PORTCbits.RC3 
+uint8_t cont_led; //variable de comparacion para se;al pwm
+int pwm_led; //variable para almacernar valor del adc para pwm
+
 
 #define _XTAL_FREQ 4000000  //frecuencia de 4MHZ
 
@@ -43,8 +50,7 @@ unsigned int CCPRB = 0; //variable para el ccpr2
 /////////////////////setup
 void setup(void); //prototipo de setuo
 void setupADC(void); //prototipo ADC
-void setupPWM(void); //prototipo del PWM
-
+void tmr0_setup(void); /// fucnion para el tmr0
 
 //------------mapeo de los valores -----------------
 unsigned short cambiopwm(uint8_t valor, uint8_t POTMIN, uint8_t POTMAX,
@@ -56,9 +62,7 @@ void __interrupt() isr(void){
  ////interrupcion para primer potecniometro
     if (PIR1bits.ADIF){ //chequea interrupcion de adc
         if (ADCON0bits.CHS == 0b0000){ //revisa el canal 1 an0
-            
-
-
+           
             CCPRA = cambiopwm(ADRESH, potmin, potmax, pwmmin, pwmmax);//se mapean los valores 
             CCPR1L = (uint8_t)(CCPRA>>2);//asigna los 8 bits mas significativos a cpr1l
             CCP1CONbits.DC1B = CCPRA & 0b11; //asigna a dc1b los 2 bits menos significaticos
@@ -72,7 +76,23 @@ void __interrupt() isr(void){
             CCP2CONbits.DC2B0 = CCPRB & 0b01; //se le asigna el primer bit menos significativo
             CCP2CONbits.DC2B1 = CCPRB & 0b10; //se le asigna el segundo bit menos significativo
         }
+        else if (ADCON0bits.CHS == 0b0011){
+            pwm_led = ADRESH;
+        }
         PIR1bits.ADIF = 0; //limpia la bandera del adc
+    }
+    if (INTCONbits.T0IF){
+        cont_led ++; //incrementar cintador del tmr0
+        
+        if (cont_led <= pwm_led){//comparar el valor del contador con el valor del potenciometro
+            fake_pwm = 1; //si el valor del contador es menor o igual a 1 encide el puerto
+        }
+        else{
+            fake_pwm = 0; // en cualquier otra situacion apagar el puerto
+            
+        }
+        INTCONbits.T0IF = 0; //limpia bandera del tmr0
+        TMR0 = tmr0_val;
     }
 }
 
@@ -95,7 +115,11 @@ void main(void){
                 ADCON0bits.CHS = 0b0010; // Cambia a canal 1// 0b0010
                 
             } else if (ADCON0bits.CHS == 0b0010) { // Chequea el canal 1
+                ADCON0bits.CHS = 0b0011; // Cambia a canal analógico 0
+            }
+            else if (ADCON0bits.CHS == 0b0010){
                 ADCON0bits.CHS = 0b0000; // Cambia a canal analógico 0
+
             }
 
             ADCON0bits.GO = 1; // Inicio de conversión
@@ -115,12 +139,18 @@ void setup(void){
     ANSELbits.ANS0 = 1; // ra0 como analogico
     ANSELbits.ANS2 = 1; //ra1 como analogico (era este)
 
+    ANSELbits.ANS3 = 1; //ra3 como analogico para el potenciometro
     
+
     
     // --------------- Configura puertos --------------- 
     TRISAbits.TRISA0 = 1; //puerto A0 como entrada
     TRISAbits.TRISA2 = 1; //puerto A1 como entrada (era este)
     
+    TRISAbits.TRISA3 = 1; //puerto A3 como entrada para potenciometro
+    
+    TRISCbits.TRISC3 = 0;//habilitar salida en rc3
+
     // --------------- limpiar puertos --------------- 
     PORTA = 0;
     PORTC = 0;
@@ -131,20 +161,26 @@ void setup(void){
     OSCCONbits.SCS = 1; // utilizar oscilador intern
     
     // --------------- TMR0 --------------- 
-//    OPTION_REGbits.T0CS = 0; // utilizar el reloj interno (fosc/4)
-//    OPTION_REGbits.PSA = 0; // asignar el prescaler a Timer0
-//    OPTION_REGbits.PS2 = 1; // utilizar prescaler de 256
-//    OPTION_REGbits.PS1 = 1;
-//    OPTION_REGbits.PS0 = 1;  
-//    TMR0 = 216; ///VALOR INICIAL DEL TMR0
+    OPTION_REGbits.T0CS = 0; // utilizar el reloj interno (fosc/4)
+    OPTION_REGbits.PSA = 0; // asignar el prescaler a Timer0
+    OPTION_REGbits.PS2 = 0; // utilizar prescaler de 256
+    OPTION_REGbits.PS1 = 0;
+    OPTION_REGbits.PS0 = 0;  
+    TMR0 = tmr0_val; ///VALOR INICIAL DEL TMR0
     
     // --------------- INTERRUPCIONES --------------- 
-    //INTCONbits.T0IF = 0; // establece la bandera de la interrupcion del TMR0 apagada
-    //INTCONbits.T0IE = 0; // habilitar iinterrupcion del TMR0
+    //tmr0 interrupciones
+    INTCONbits.T0IF = 0; // establece la bandera de la interrupcion del TMR0 apagada
+    INTCONbits.T0IE = 1; // habilitar iinterrupcion del TMR0
+    
+    
     INTCONbits.GIE = 1; // habilitar interrupciones globales
     INTCONbits.PEIE = 1; // habilitar interrupciones perifericas
     PIE1bits.ADIE = 1; // habilitar interrupciones de ADC
     PIR1bits.ADIF = 0; // limpiar la bandera de interrupcion del ADC
+
+
+    
 }
 
 // --------------- Setup del ADC --------------- 
@@ -170,45 +206,7 @@ void setupADC(void){
     __delay_ms(1);
 }
 
-//pr2,bits prescale y oscilador afectan al servo
 
-//-------setup de PWM-------------------
-//void setupPWM(void){
-//  //--------------ccp1---------------    
-//    TRISCbits.TRISC1 = 1; //CCP1 como entrada
-//    TRISCbits.TRISC2 = 1; //CCP2 como entrada
-//    
-//    PR2 = 249 ;   //periodo de 4ms en el tmr2
-//    
-//    ////------------configuracion e ccp1------------------
-//    CCP1CON = 0; //APAGA CCP1 INICIALMENTE
-//    CCP2CON = 0; //APAGA CCP2 INICIALMENTE
-//    
-//    CCP1CONbits.P1M = 0; //modo de single output
-//    CCP1CONbits.CCP1M = 0b1100; //modo pwm para ccp1
-//    CCP2CONbits.CCP2M = 0b1100; //modo pwm para ccp2
-//
-//    
-//    CCPR1L = 250>>2; //asiga 2 bits de 250 a ccpr1l
-//    CCP1CONbits.DC1B = 250 & 0b11;//asigna los bits menos sigificaticos del and a dc1b 
-//    CCPR2L = 250>>2;//los 2 bits desplazados se asignan a ccpr2l
-//    CCP2CONbits.DC2B0 = 250 & 0b01;//asigna el valor del and a dc2b0 
-//    CCP2CONbits.DC2B1 = 250 & 0b10; //asigna los bits a dc2b1
-//    //CCPR1L = 3; //valor inicla para que el servo inicie en 90 
-//    //CCP1CONbits.DC1B = 0b11; ///BITS menos significativos
-//    
-//    PIR1bits.TMR2IF = 0; //limpiar bandera del tmr2
-//    T2CONbits.T2CKPS = 0b11; //prescalr 16
-//    T2CONbits.TMR2ON = 1; //encender el tmr2
-//    
-//    while (!PIR1bits.TMR2IF);//ciclo de espera
-//    PIR1bits.TMR2IF = 0; //limpoar la bandera del tmr2
-//    
-//    TRISCbits.TRISC2 = 0; //habilitar salida en rc2
-//    TRISCbits.TRISC1 = 0; //habilitar salida en rc1
-//    return;
-//
-//}
 
 ////funcion de mapeo e valores
 unsigned short cambiopwm(uint8_t valor, uint8_t POTMIN, uint8_t POTMAX,
